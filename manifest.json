@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Omodoro",
-    "description": "Omodoro panel",
+    "description": "Pomodoro technique timer with task tracking, config and keybinds",
     "category": "Productivity",
     "allowMultiple": false
   }
