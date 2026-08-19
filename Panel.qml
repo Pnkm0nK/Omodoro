@@ -994,7 +994,7 @@ Panel {
               text: "KEYBOARD SHORTCUTS"
               foreground: root.bar.foreground
               fontFamily: root.bar.fontFamily
-              leftPadding: Style.space(16)
+              leftPadding: Style.space(8)
             }
 
             Column {
@@ -1014,7 +1014,7 @@ Panel {
                 Item {
                   required property var modelData
                   width: parent.width
-                  height: Style.space(22)
+                  height: Style.space(12)
 
                   Text {
                     anchors.left: parent.left
