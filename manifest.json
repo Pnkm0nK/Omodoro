@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "pnkm0nk.omodoro",
+  "name": "Omodoro",
+  "version": "1.0.0",
+  "author": "pnkm0nk",
+  "description": "Omodoro timer panel with task tracking",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omodoro",
+    "description": "Omodoro panel",
+    "category": "Productivity",
+    "allowMultiple": false,
+    "settingsForm": "OmodoroSettings"
+  }
+}
