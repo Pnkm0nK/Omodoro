@@ -4,7 +4,7 @@
   "name": "Omodoro",
   "version": "1.0.0",
   "author": "pnkm0nk",
-  "description": "Omodoro timer panel with task tracking",
+  "description": "Pomodoro technique timer panel with task tracking, keybindings, configuration and notifications",
   "kinds": [
     "bar-widget"
   ],
@@ -15,7 +15,6 @@
     "displayName": "Omodoro",
     "description": "Omodoro panel",
     "category": "Productivity",
-    "allowMultiple": false,
-    "settingsForm": "OmodoroSettings"
+    "allowMultiple": false
   }
 }

@@ -37,6 +37,16 @@ BarWidget {
     if (panelLoader.item && panelLoader.item.close) panelLoader.item.close()
   }
 
+  function getIconForegroundColor(panelItem) {
+    if (!panelItem || !panelItem.timerRunning) return root.bar ? root.bar.barForeground : Color.foreground
+    switch (panelItem.currentMode) {
+      case "work": return root.bar ? root.bar.urgent : Color.urgent
+      case "shortBreak":
+      case "longBreak": return Color.accent
+      default: return root.bar ? root.bar.barForeground : Color.foreground
+    }
+  }
+
   // Forwarded so this widget can stand in for the panel as the bar's popout
   // identity: Bar.requestPopout prefers closeForPopoutSwitch over close, and
   // KeyboardPanel reads popoutSwitchClosing back off its owner.
@@ -69,14 +79,13 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: panelLoader.item ? panelLoader.item.label : ""
+    foreground: getIconForegroundColor(panelLoader.item)
     slotSize: Style.bar.statusSlot
-    // Tooltip suppressed because the panel is the detail view.
-    tooltipText: ""
+    tooltipText: "Omodoro"
 
     onPressed: function(b) {
       if (!root.bar) return
-      if (b === Qt.RightButton) root.bar.run("omarchy-notification-send \"$(omarchy-weather-status)\"")
-      else if (b === Qt.MiddleButton) root.refresh()
+      if (b === Qt.MiddleButton) root.refresh()
       else root.togglePanel()
     }
   }
