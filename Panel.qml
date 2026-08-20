@@ -695,6 +695,11 @@ Panel {
                     onTextChanged: root.newTaskName = text
                     Keys.onReturnPressed: root.addTask()
                     Keys.onEnterPressed: root.addTask()
+                    Keys.onEscapePressed: function(event) {
+                      taskNameField.focus = false
+                      keyCatcher.forceActiveFocus()
+                      if (event) event.accepted = true
+                    }
                   }
 
                   NumberField {
