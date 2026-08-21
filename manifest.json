@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "pnkm0nk.omodoro",
   "name": "Omodoro",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "pnkm0nk",
   "description": "Pomodoro technique timer panel with task tracking, keybindings, configuration and notifications",
   "kinds": [
