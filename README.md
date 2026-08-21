@@ -44,3 +44,9 @@ When the panel is open and focused:
 | `-` / `_` | Subtract 1 minute |
 | `Esc` | Close panel |
 
+## Omarchy keybind
+If you would like to open the panel using a keyboard shortcut, you can add the following line to `$HOME/.config/hypr/bindings.lua`: 
+```lua
+o.bind("SUPER + SHIFT + P (Or your preffered keybind)", "Omodoro", "omarchy shell -q shell toggle pnkm0nk.omodoro")
+```
+

@@ -4,7 +4,7 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "pnkm0nk.Omodoro"
+  moduleName: "pnkm0nk.omodoro"
 
   function injectPanel() {
     var target = panelLoader.item

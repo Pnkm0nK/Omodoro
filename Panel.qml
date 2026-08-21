@@ -35,11 +35,43 @@ Panel {
   property bool showSettings: false
   property bool showStats: false
   property bool showTasks: false
+  property bool isDraggingTask: false
 
   // tasks
-  property var tasks: []
-  property string newTaskName: ""
-  property int newTaskEstimate: 4
+  property alias taskModel: taskModel
+  property var currentTask: null
+
+  ListModel {
+    id: taskModel
+  }
+
+  function updateCurrentTask() {
+    for (var i = 0; i < taskModel.count; i++) {
+      var item = taskModel.get(i)
+      if (item && item.completed < item.estimated) {
+        root.currentTask = {
+          index: i,
+          name: item.name,
+          completed: item.completed,
+          estimated: item.estimated
+        }
+        return
+      }
+    }
+    if (taskModel.count > 0) {
+      var first = taskModel.get(0)
+      root.currentTask = {
+        index: 0,
+        name: first.name,
+        completed: first.completed,
+        estimated: first.estimated
+      }
+    } else {
+      root.currentTask = null
+    }
+  }
+
+  Component.onCompleted: root.updateCurrentTask()
 
   // stats
   property int totalPomodoros: 0
@@ -70,21 +102,26 @@ Panel {
   function loadState(raw) {
     if (!raw || raw.trim() === "") return
     try {
-      var data = JSON.parse(raw)
-      if (data.settings) {
-        if (data.settings.selectedPreset !== undefined) root.selectedPreset = data.settings.selectedPreset
-        if (data.settings.workTime !== undefined) root.workTime = data.settings.workTime
-        if (data.settings.shortBreakTime !== undefined) root.shortBreakTime = data.settings.shortBreakTime
-        if (data.settings.longBreakTime !== undefined) root.longBreakTime = data.settings.longBreakTime
-        if (data.settings.longBreakInterval !== undefined) root.longBreakInterval = data.settings.longBreakInterval
-        if (data.settings.autoStartWork !== undefined) root.autoStartWork = data.settings.autoStartWork
-        if (data.settings.autoStartBreak !== undefined) root.autoStartBreak = data.settings.autoStartBreak
-        if (data.settings.notificationsEnabled !== undefined) root.notificationsEnabled = data.settings.notificationsEnabled
-        if (!timer.running) root.timeLeft = root.getTimeForMode(root.currentMode)
-      }
-      if (Array.isArray(data.tasks)) {
-        root.tasks = data.tasks
-      }
+        var data = JSON.parse(raw)
+        if (data.settings) {
+          if (data.settings.selectedPreset !== undefined) root.selectedPreset = data.settings.selectedPreset
+          if (data.settings.workTime !== undefined) root.workTime = data.settings.workTime
+          if (data.settings.shortBreakTime !== undefined) root.shortBreakTime = data.settings.shortBreakTime
+          if (data.settings.longBreakTime !== undefined) root.longBreakTime = data.settings.longBreakTime
+          if (data.settings.longBreakInterval !== undefined) root.longBreakInterval = data.settings.longBreakInterval
+          if (data.settings.autoStartWork !== undefined) root.autoStartWork = data.settings.autoStartWork
+          if (data.settings.autoStartBreak !== undefined) root.autoStartBreak = data.settings.autoStartBreak
+          if (data.settings.notificationsEnabled !== undefined) root.notificationsEnabled = data.settings.notificationsEnabled
+          if (!timer.running) root.timeLeft = root.getTimeForMode(root.currentMode)
+        }
+        // clearing to prevent leftover data duplicating
+        taskModel.clear()
+        if (Array.isArray(data.tasks)) {
+          for (var i = 0; i < data.tasks.length; i++) {
+            taskModel.append(data.tasks[i])
+          }
+        }
+        root.updateCurrentTask()
       if (data.stats) {
         root.totalPomodoros = data.stats.totalPomodoros || 0
         root.totalFocusMinutes = data.stats.totalFocusMinutes || 0
@@ -105,6 +142,20 @@ Panel {
     }
   }
 
+  function modelToArrayTransform(model) {
+    var arr = []
+    if (!model) return arr
+    for (var i = 0; i < model.count; i++) {
+      var item = model.get(i)
+      arr.push({
+        name: item.name,
+        estimated: item.estimated,
+        completed: item.completed
+      })
+    }
+    return arr
+  }
+
   function saveState() {
     var data = {
       settings: {
@@ -117,7 +168,7 @@ Panel {
         autoStartBreak: root.autoStartBreak,
         notificationsEnabled: root.notificationsEnabled
       },
-      tasks: root.tasks,
+      tasks: modelToArrayTransform(taskModel),
       stats: {
         totalPomodoros: root.totalPomodoros,
         totalFocusMinutes: root.totalFocusMinutes,
@@ -155,8 +206,8 @@ Panel {
     }
 
     // increment the first uncompleted task
-    for (var i = 0; i < tasks.length; i++) {
-      if (tasks[i].completed < tasks[i].estimated) {
+    for (var i = 0; i < taskModel.count; i++) {
+      if (taskModel.get(i).completed < taskModel.get(i).estimated) {
         incrementTask(i)
         break
       }
@@ -204,8 +255,8 @@ Panel {
     switch (mode) {
       case "shortBreak": return "Short Break"
       case "longBreak":  return "Long Break"
+      default:           return root.currentTask ? root.currentTask.name : "Focus!"
     }
-    return tasks.length > 0 ? tasks[0].name : "Focus!"
   }
 
   function getTimeForMode(mode) {
@@ -273,28 +324,34 @@ Panel {
     saveState()
   }
 
-  function addTask() {
-    if (newTaskName.trim() === "") return
-    var t = tasks.slice()
-    t.push({ name: newTaskName.trim(), estimated: newTaskEstimate, completed: 0 })
-    tasks = t
-    newTaskName = ""
+  function addTask(name, estimated) {
+    var trimmed = (name || "").trim()
+    if (trimmed === "") return
+    taskModel.append({
+      name: trimmed,
+      estimated: estimated || 1,
+      completed: 0
+    })
+    root.updateCurrentTask()
     saveState()
   }
 
   function removeTask(index) {
-    var t = tasks.slice()
-    t.splice(index, 1)
-    tasks = t
-    saveState()
+    if (index >= 0 && index < taskModel.count) {
+      taskModel.remove(index)
+      root.updateCurrentTask()
+      saveState()
+    }
   }
 
   function incrementTask(index) {
-    var t = tasks.slice()
-    if (t[index].completed < t[index].estimated) {
-      t[index] = { name: t[index].name, estimated: t[index].estimated, completed: t[index].completed + 1 }
-      tasks = t
-      saveState()
+    if (index >= 0 && index < taskModel.count) {
+      var item = taskModel.get(index)
+      if (item.completed < item.estimated) {
+        taskModel.setProperty(index, "completed", item.completed + 1)
+        root.updateCurrentTask()
+        saveState()
+      }
     }
   }
 
@@ -357,13 +414,14 @@ Panel {
         contentHeight: mainColumn.implicitHeight
         clip: interactive
         boundsBehavior: Flickable.StopAtBounds
-        interactive: contentHeight > height
+        interactive: (contentHeight > height) && !root.isDraggingTask
 
         Column {
           id: mainColumn
           width: mainScroll.width
           spacing: Style.space(4)
 
+          // header + stats and settings buttons
           Item {
             width: parent.width
             height: headerRow.implicitHeight + Style.space(8)
@@ -437,6 +495,7 @@ Panel {
             width: parent.width
             spacing: Style.space(8)
 
+            // the clock itself
             Column {
               width: parent.width
 
@@ -502,7 +561,7 @@ Panel {
                 }
               }
             }
-
+            // message about pomodoro(either task, or just a slogan)
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
               text: root.getMessageForMode(root.currentMode)
@@ -511,7 +570,7 @@ Panel {
               font.pixelSize: Style.font.subtitle
               font.bold: true
             }
-
+            // controls
             Item {
               width: parent.width
               height: controlsRow.implicitHeight
@@ -547,7 +606,7 @@ Panel {
                 }
               }
             }
-
+            // dots: num of pomos until long break
             Item {
               width: parent.width
               height: dotsRow.implicitHeight
@@ -605,69 +664,145 @@ Panel {
                 onClicked: root.showTasks = !root.showTasks
               }
             }
-
             Column {
-              id: taskDrawer
+              id: taskDrawerColumn
               width: parent.width
               visible: root.showTasks
-              spacing: Style.space(4)
+              spacing: Style.space(8)
 
-              Repeater {
-                model: root.tasks
+              ListView {
+                id: taskDrawer
+                width: parent.width
+                height: Math.min(contentHeight, Style.space(150))
+                clip: true
+                interactive: !root.isDraggingTask
+                model: taskModel
 
-                Item {
+                delegate: Item {
+                  id: delegateRoot
+                  required property string name
+                  required property int completed
+                  required property int estimated
                   required property int index
-                  required property var modelData
                   width: taskDrawer.width
                   height: Math.max(taskRow.implicitHeight, Style.space(36))
+                  z: dragArea.drag.active ? 100 : 1
 
-                  readonly property int taskCompleted: modelData ? (modelData.completed || 0) : 0
-                  readonly property int taskEstimated: modelData ? (modelData.estimated || 1) : 1
+                  Item {
+                    id: taskRowWrapper
+                    width: parent.width
+                    height: parent.height
 
-                  Row {
-                    id: taskRow
-                    anchors.left: parent.left
-                    anchors.leftMargin: Style.space(16)
-                    anchors.right: parent.right
-                    anchors.rightMargin: Style.space(12)
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Style.space(8)
-
-                    Text {
-                      text: modelData ? modelData.name : ""
-                      color: root.bar.foreground
-                      font.family: root.bar.fontFamily
-                      font.pixelSize: Style.font.body
-                      elide: Text.ElideRight
-                      width: parent.width - taskProgress.width - taskIncBtn.width - taskDelBtn.width - parent.spacing * 3
-                      anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {
+                      anchors.fill: parent
+                      color: dragArea.drag.active ? Qt.rgba(root.bar.foreground.r, root.bar.foreground.g, root.bar.foreground.b, 0.15) : (dragArea.containsMouse ? Qt.rgba(root.bar.foreground.r, root.bar.foreground.g, root.bar.foreground.b, 0.05) : "transparent")
+                      radius: Style.space(4)
+                      border.color: dragArea.drag.active ? root.bar.foreground : "transparent"
+                      border.width: dragArea.drag.active ? 1 : 0
                     }
 
-                    Text {
-                      id: taskProgress
-                      text: modelData ? (taskCompleted + "/" + taskEstimated) : ""
-                      color: Qt.darker(root.bar.foreground, 1.4)
-                      font.family: root.bar.fontFamily
-                      font.pixelSize: Style.font.bodySmall
-                      anchors.verticalCenter: parent.verticalCenter
+                    MouseArea {
+                      id: dragArea
+                      anchors.fill: parent
+                      anchors.rightMargin: Style.space(70)
+                      hoverEnabled: true
+                      cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                      drag.target: taskRowWrapper
+                      drag.axis: Drag.YAxis
+
+                      onPressed: {
+                        root.isDraggingTask = true
+                      }
+
+                      onPositionChanged: {
+                        if (drag.active) {
+                          var currentY = delegateRoot.y + taskRowWrapper.y + delegateRoot.height / 2
+                          var targetIdx = Math.floor(currentY / delegateRoot.height)
+                          targetIdx = Math.max(0, Math.min(taskModel.count - 1, targetIdx))
+                          if (targetIdx !== index) {
+                            taskModel.move(index, targetIdx, 1)
+                            root.updateCurrentTask()
+                            root.saveState()
+                          }
+                        }
+                      }
+
+                      onReleased: {
+                        root.isDraggingTask = false
+                        taskRowWrapper.y = 0
+                      }
+
+                      onCanceled: {
+                        root.isDraggingTask = false
+                        taskRowWrapper.y = 0
+                      }
                     }
 
-                    PanelActionButton {
-                      id: taskIncBtn
-                      iconText: "\uf067"
-                      foreground: root.bar.foreground
+                    Row {
+                      id: taskRow
+                      anchors.left: parent.left
+                      anchors.leftMargin: Style.space(12)
+                      anchors.right: parent.right
+                      anchors.rightMargin: Style.space(12)
                       anchors.verticalCenter: parent.verticalCenter
-                      enabled: taskCompleted < taskEstimated
-                      onClicked: root.incrementTask(index)
-                    }
+                      spacing: Style.space(8)
 
-                    PanelActionButton {
-                      id: taskDelBtn
-                      iconText: "✕"
-                      foreground: root.bar.foreground
-                      hoverColor: Color.urgent
-                      anchors.verticalCenter: parent.verticalCenter
-                      onClicked: root.removeTask(index)
+                      Text {
+                        text: "⠿"
+                        color: Qt.darker(root.bar.foreground, 1.5)
+                        font.family: root.bar.fontFamily
+                        font.pixelSize: Style.font.body
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenterOffset: Style.space(2)
+                      }
+
+                      Text {
+                        text: name
+                        color: root.bar.foreground
+                        font.family: root.bar.fontFamily
+                        font.pixelSize: Style.font.body
+                        elide: Text.ElideRight
+                        width: parent.width - taskProgress.width - taskIncBtn.width - taskDelBtn.width - Style.space(34) - parent.spacing * 4
+                        anchors.verticalCenter: parent.verticalCenter
+                      }
+                      Item{
+                        width: completedCheckmark.implicitWidth
+                        height: completedCheckmark.implicitHeight
+
+                        Text{
+                          id: completedCheckmark
+                          text: ("\uf00c")
+                          visible: completed === estimated
+                          color: Color.accent
+                        }
+                      }
+
+                      Text {
+                        id: taskProgress
+                        text: completed + "/" + estimated
+                        color: Qt.darker(root.bar.foreground, 1.4)
+                        font.family: root.bar.fontFamily
+                        font.pixelSize: Style.font.bodySmall
+                        anchors.verticalCenter: parent.verticalCenter
+                      }
+
+                      PanelActionButton {
+                        id: taskIncBtn
+                        iconText: "\uf067"
+                        foreground: root.bar.foreground
+                        anchors.verticalCenter: parent.verticalCenter
+                        enabled: completed < estimated
+                        onClicked: root.incrementTask(index)
+                      }
+
+                      PanelActionButton {
+                        id: taskDelBtn
+                        iconText: "✕"
+                        foreground: root.bar.foreground
+                        hoverColor: Color.urgent
+                        anchors.verticalCenter: parent.verticalCenter
+                        onClicked: root.removeTask(index)
+                      }
                     }
                   }
                 }
@@ -691,10 +826,14 @@ Panel {
                     width: parent.width - taskEstField.width - addTaskBtn.width - parent.spacing * 3
                     placeholderText: "New task..."
                     foreground: root.bar.foreground
-                    text: root.newTaskName
-                    onTextChanged: root.newTaskName = text
-                    Keys.onReturnPressed: root.addTask()
-                    Keys.onEnterPressed: root.addTask()
+                    Keys.onReturnPressed: {
+                      root.addTask(taskNameField.text, taskEstField.value)
+                      taskNameField.text = ""
+                    }
+                    Keys.onEnterPressed: {
+                      root.addTask(taskNameField.text, taskEstField.value)
+                      taskNameField.text = ""
+                    }
                     Keys.onEscapePressed: function(event) {
                       taskNameField.focus = false
                       keyCatcher.forceActiveFocus()
@@ -705,12 +844,12 @@ Panel {
                   NumberField {
                     id: taskEstField
                     label: ""
-                    value: root.newTaskEstimate
+                    value: 4
                     from: 1
                     to: 20
                     foreground: root.bar.foreground
                     fieldWidth: Style.space(56)
-                    onModified: function(v) { root.newTaskEstimate = v }
+                    onModified: function(v) { value = v }
                   }
 
                   Button {
@@ -720,7 +859,7 @@ Panel {
                     foreground: root.bar.foreground
                     anchors.verticalCenter: parent.verticalCenter
                     onClicked: {
-                      root.addTask()
+                      root.addTask(taskNameField.text, taskEstField.value)
                       taskNameField.text = ""
                     }
                   }
@@ -1048,7 +1187,6 @@ Panel {
               height: Style.space(8)
             }
           }
-
         }
       }
     }
