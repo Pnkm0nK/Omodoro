@@ -77,19 +77,57 @@ BarWidget {
     }
   }
 
-  BarIconButton {
+  WidgetButton {
     id: button
     anchors.fill: parent
     bar: root.bar
+    // Hidden label exists only to drive implicitWidth, so the bar reflows
+    // neighboring widgets as the countdown text changes width.
     text: root.service ? root.service.label : ""
-    foreground: root.getIconForegroundColor()
-    slotSize: Style.bar.statusSlot
+    labelVisible: false
+    hasVisualContent: text !== ""
     tooltipText: "Omodoro"
 
     onPressed: function(b) {
       if (!root.bar) return
       if (b === Qt.MiddleButton) root.refresh()
       else root.togglePanel()
+    }
+
+    OpticalGlyph {
+      anchors.centerIn: parent
+      visible: !(root.service && root.service.timerRunning)
+      text: "\ue001"
+      fontFamily: button.fontFamily
+      fontSize: Style.bar.iconFont
+      color: button.foreground
+    }
+
+    Row {
+      anchors.centerIn: parent
+      visible: root.service && root.service.timerRunning
+
+      Text {
+        text: "["
+        font.family: button.fontFamily
+        font.pixelSize: Style.bar.iconFont
+        color: button.foreground
+        renderType: Text.NativeRendering
+      }
+      Text {
+        text: root.service ? root.service.label.slice(1, -1) : ""
+        font.family: button.fontFamily
+        font.pixelSize: Style.bar.iconFont
+        color: root.getIconForegroundColor()
+        renderType: Text.NativeRendering
+      }
+      Text {
+        text: "]"
+        font.family: button.fontFamily
+        font.pixelSize: Style.bar.iconFont
+        color: button.foreground
+        renderType: Text.NativeRendering
+      }
     }
   }
 }
