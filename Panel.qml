@@ -808,6 +808,132 @@ Panel {
                 root.service.saveState()
               }
             }
+
+            Toggle {
+              width: parent.width
+              label: "Sound"
+              description: "Play a sound when work sessions and breaks finish"
+              checked: root.service.soundEnabled
+              foreground: root.bar ? root.bar.foreground : Color.foreground
+              onClicked: {
+                root.service.soundEnabled = !root.service.soundEnabled
+                root.service.saveState()
+              }
+            }
+
+            Toggle {
+              width: parent.width
+              label: "Ticking"
+              description: "Play a clock tick every second while the timer runs"
+              checked: root.service.tickSoundEnabled
+              foreground: root.bar ? root.bar.foreground : Color.foreground
+              onClicked: {
+                root.service.tickSoundEnabled = !root.service.tickSoundEnabled
+                root.service.saveState()
+              }
+            }
+          }
+
+          Column {
+            width: parent.width - Style.space(32)
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: Style.space(6)
+            leftPadding: Style.space(16)
+
+            Text {
+              text: "Tick sound"
+              color: root.bar ? root.bar.foreground : Color.foreground
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.bodySmall
+            }
+
+            Row {
+              spacing: Style.space(8)
+
+              ButtonGroup {
+                id: tickSoundGroup
+                foreground: root.bar ? root.bar.foreground : Color.foreground
+                value: root.service.tickSoundId
+                options: root.service.tickOptions.map(function(o) { return { value: o.id, label: o.label } })
+                onChanged: function(v) {
+                  root.service.tickSoundId = v
+                  root.service.saveState()
+                }
+              }
+
+              Button {
+                iconText: ""
+                foreground: root.bar ? root.bar.foreground : Color.foreground
+                tooltipText: "Preview"
+                onClicked: root.service.previewTick()
+              }
+            }
+          }
+
+          Column {
+            width: parent.width - Style.space(32)
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: Style.space(6)
+            leftPadding: Style.space(16)
+
+            Text {
+              text: "Break sound"
+              color: root.bar ? root.bar.foreground : Color.foreground
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.bodySmall
+            }
+
+            Row {
+              spacing: Style.space(8)
+
+              ButtonGroup {
+                id: breakSoundGroup
+                foreground: root.bar ? root.bar.foreground : Color.foreground
+                value: root.service.breakSoundId
+                options: root.service.soundOptions.map(function(o) { return { value: o.id, label: o.label } })
+                onChanged: function(v) {
+                  root.service.breakSoundId = v
+                  root.service.saveState()
+                }
+              }
+
+              Button {
+                iconText: ""
+                foreground: root.bar ? root.bar.foreground : Color.foreground
+                tooltipText: "Preview"
+                onClicked: root.service.previewSound(root.service.breakSoundId)
+              }
+            }
+
+            Text {
+              text: "Back-to-work sound"
+              color: root.bar ? root.bar.foreground : Color.foreground
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.bodySmall
+              topPadding: Style.space(6)
+            }
+
+            Row {
+              spacing: Style.space(8)
+
+              ButtonGroup {
+                id: workSoundGroup
+                foreground: root.bar ? root.bar.foreground : Color.foreground
+                value: root.service.workSoundId
+                options: root.service.soundOptions.map(function(o) { return { value: o.id, label: o.label } })
+                onChanged: function(v) {
+                  root.service.workSoundId = v
+                  root.service.saveState()
+                }
+              }
+
+              Button {
+                iconText: ""
+                foreground: root.bar ? root.bar.foreground : Color.foreground
+                tooltipText: "Preview"
+                onClicked: root.service.previewSound(root.service.workSoundId)
+              }
+            }
           }
 
           PanelSeparator { foreground: root.bar ? root.bar.foreground : Color.foreground }

@@ -13,6 +13,7 @@ Pomodoro technique timer and task tracker [quickshell](https://quickshell.org/) 
 - Customizable work/short break/long break intervals 
 - Track your progress with stats
 - Enable/disable notifications if you need them
+- Enable/disable sound, with a choice of alert sound for work/break transitions and an optional ticking clock while a session runs
 - A small .json persistence file to preserve the stats, config and tasks
 
 ## Install
