@@ -53,3 +53,26 @@ If you would like to open the panel using a keyboard shortcut, you can add the f
 o.bind("SUPER + SHIFT + P (Or your preffered keybind)", "Omodoro", "omarchy shell -q shell toggle pnkm0nk.omodoro")
 ```
 
+## Adjusting sound volume
+
+The bundled sounds in `sounds/` (used for Ticking) are already normalized so their peaks
+line up with the desktop alert sounds used for the break/work transitions. If you want one
+quieter or louder, scale it with `ffmpeg`'s `volume` filter, which takes a linear multiplier
+(`1.0` = unchanged, `0.5` = half as loud, `2.0` = twice as loud):
+
+```sh
+cd ~/.config/omarchy/plugins/pnkm0nk.omodoro/sounds
+ffmpeg -i tick.wav -af "volume=0.5" tick-quieter.wav
+mv tick-quieter.wav tick.wav
+```
+
+Check the resulting peak level any time with:
+
+```sh
+ffmpeg -i tick.wav -af volumedetect -f null - 2>&1 | grep max_volume
+```
+
+The shipped clips sit around -17 dBFS peak (roughly 20% of full scale) — well below the
+desktop alert sounds' -3 to -10 dBFS, since a tick plays every second while an alert plays
+once per session.
+
