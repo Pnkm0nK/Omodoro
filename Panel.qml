@@ -33,7 +33,7 @@ Panel {
     centerOnBar: true
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(380))
-    contentHeight: panel.fittedContentHeight(contentLoader.item ? contentLoader.item.implicitHeight : Style.space(300))
+    contentHeight: panel.fittedContentHeight(contentLoader.item ? contentLoader.item.implicitHeight : Style.space(300), Style.space(520))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -762,7 +762,7 @@ Panel {
           PanelSeparator { foreground: root.bar ? root.bar.foreground : Color.foreground }
 
           PanelSectionHeader {
-            text: "AUTO-START"
+            text: "TOGGLES"
             foreground: root.bar ? root.bar.foreground : Color.foreground
             fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
             leftPadding: Style.space(16)
@@ -811,6 +811,69 @@ Panel {
 
             Toggle {
               width: parent.width
+              label: "Double digit timer in bar"
+              description: "Display [mm:ss] countdown on the bar instead of just minutes"
+              checked: root.service.showSecondsInBar
+              foreground: root.bar ? root.bar.foreground : Color.foreground
+              onClicked: {
+                root.service.showSecondsInBar = !root.service.showSecondsInBar
+                root.service.saveState()
+              }
+            }
+          }
+
+          PanelSeparator { foreground: root.bar ? root.bar.foreground : Color.foreground }
+
+          Item {
+            id: soundHeader
+            width: parent.width - Style.space(32)
+            anchors.horizontalCenter: parent.horizontalCenter
+            height: Math.max(soundSectionTitle.implicitHeight, Style.space(24))
+
+            PanelSectionHeader {
+              id: soundSectionTitle
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              text: "SOUND"
+              foreground: soundHeaderMouse.containsMouse
+                ? (root.bar ? root.bar.foreground : Color.foreground)
+                : (root.bar ? Qt.darker(root.bar.foreground, 1.2) : Color.muted)
+              fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+            }
+
+            Text {
+              id: soundChevron
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.service.showSoundSettings ? "󰅀" : "󰅂"
+              color: soundHeaderMouse.containsMouse
+                ? (root.bar ? root.bar.foreground : Color.foreground)
+                : (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted)
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+
+            MouseArea {
+              id: soundHeaderMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                root.service.showSoundSettings = !root.service.showSoundSettings
+                root.service.saveState()
+              }
+            }
+          }
+
+          Column {
+            id: soundSectionContent
+            visible: root.service.showSoundSettings
+            width: parent.width - Style.space(32)
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: Style.space(10)
+
+            Toggle {
+              width: parent.width
               label: "Sound"
               description: "Play a sound when work sessions and breaks finish"
               checked: root.service.soundEnabled
@@ -832,120 +895,151 @@ Panel {
                 root.service.saveState()
               }
             }
-          }
 
-          Column {
-            width: parent.width - Style.space(32)
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: Style.space(6)
-            leftPadding: Style.space(16)
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
 
-            Text {
-              text: "Tick sound"
-              color: root.bar ? root.bar.foreground : Color.foreground
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.bodySmall
+              Text {
+                text: "Tick sound"
+                color: root.bar ? root.bar.foreground : Color.foreground
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.bodySmall
+              }
+
+              Row {
+                spacing: Style.space(8)
+
+                ButtonGroup {
+                  id: tickSoundGroup
+                  foreground: root.bar ? root.bar.foreground : Color.foreground
+                  value: root.service.tickSoundId
+                  options: root.service.tickOptions.map(function(o) { return { value: o.id, label: o.label } })
+                  onChanged: function(v) {
+                    root.service.tickSoundId = v
+                    root.service.saveState()
+                  }
+                }
+
+                Button {
+                  iconText: ""
+                  foreground: root.bar ? root.bar.foreground : Color.foreground
+                  tooltipText: "Preview"
+                  onClicked: root.service.previewTick()
+                }
+              }
             }
 
-            Row {
-              spacing: Style.space(8)
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
 
-              ButtonGroup {
-                id: tickSoundGroup
-                foreground: root.bar ? root.bar.foreground : Color.foreground
-                value: root.service.tickSoundId
-                options: root.service.tickOptions.map(function(o) { return { value: o.id, label: o.label } })
-                onChanged: function(v) {
-                  root.service.tickSoundId = v
-                  root.service.saveState()
+              Text {
+                text: "Break sound"
+                color: root.bar ? root.bar.foreground : Color.foreground
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.bodySmall
+              }
+
+              Row {
+                spacing: Style.space(8)
+
+                ButtonGroup {
+                  id: breakSoundGroup
+                  foreground: root.bar ? root.bar.foreground : Color.foreground
+                  value: root.service.breakSoundId
+                  options: root.service.soundOptions.map(function(o) { return { value: o.id, label: o.label } })
+                  onChanged: function(v) {
+                    root.service.breakSoundId = v
+                    root.service.saveState()
+                  }
+                }
+
+                Button {
+                  iconText: ""
+                  foreground: root.bar ? root.bar.foreground : Color.foreground
+                  tooltipText: "Preview"
+                  onClicked: root.service.previewSound(root.service.breakSoundId)
                 }
               }
 
-              Button {
-                iconText: ""
-                foreground: root.bar ? root.bar.foreground : Color.foreground
-                tooltipText: "Preview"
-                onClicked: root.service.previewTick()
+              Text {
+                text: "Back-to-work sound"
+                color: root.bar ? root.bar.foreground : Color.foreground
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.bodySmall
+                topPadding: Style.space(6)
               }
-            }
-          }
 
-          Column {
-            width: parent.width - Style.space(32)
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: Style.space(6)
-            leftPadding: Style.space(16)
+              Row {
+                spacing: Style.space(8)
 
-            Text {
-              text: "Break sound"
-              color: root.bar ? root.bar.foreground : Color.foreground
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.bodySmall
-            }
-
-            Row {
-              spacing: Style.space(8)
-
-              ButtonGroup {
-                id: breakSoundGroup
-                foreground: root.bar ? root.bar.foreground : Color.foreground
-                value: root.service.breakSoundId
-                options: root.service.soundOptions.map(function(o) { return { value: o.id, label: o.label } })
-                onChanged: function(v) {
-                  root.service.breakSoundId = v
-                  root.service.saveState()
+                ButtonGroup {
+                  id: workSoundGroup
+                  foreground: root.bar ? root.bar.foreground : Color.foreground
+                  value: root.service.workSoundId
+                  options: root.service.soundOptions.map(function(o) { return { value: o.id, label: o.label } })
+                  onChanged: function(v) {
+                    root.service.workSoundId = v
+                    root.service.saveState()
+                  }
                 }
-              }
 
-              Button {
-                iconText: ""
-                foreground: root.bar ? root.bar.foreground : Color.foreground
-                tooltipText: "Preview"
-                onClicked: root.service.previewSound(root.service.breakSoundId)
-              }
-            }
-
-            Text {
-              text: "Back-to-work sound"
-              color: root.bar ? root.bar.foreground : Color.foreground
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.bodySmall
-              topPadding: Style.space(6)
-            }
-
-            Row {
-              spacing: Style.space(8)
-
-              ButtonGroup {
-                id: workSoundGroup
-                foreground: root.bar ? root.bar.foreground : Color.foreground
-                value: root.service.workSoundId
-                options: root.service.soundOptions.map(function(o) { return { value: o.id, label: o.label } })
-                onChanged: function(v) {
-                  root.service.workSoundId = v
-                  root.service.saveState()
+                Button {
+                  iconText: ""
+                  foreground: root.bar ? root.bar.foreground : Color.foreground
+                  tooltipText: "Preview"
+                  onClicked: root.service.previewSound(root.service.workSoundId)
                 }
-              }
-
-              Button {
-                iconText: ""
-                foreground: root.bar ? root.bar.foreground : Color.foreground
-                tooltipText: "Preview"
-                onClicked: root.service.previewSound(root.service.workSoundId)
               }
             }
           }
 
           PanelSeparator { foreground: root.bar ? root.bar.foreground : Color.foreground }
 
-          PanelSectionHeader {
-            text: "KEYBOARD SHORTCUTS"
-            foreground: root.bar ? root.bar.foreground : Color.foreground
-            fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
-            leftPadding: Style.space(8)
+          Item {
+            id: shortcutsHeader
+            width: parent.width - Style.space(32)
+            anchors.horizontalCenter: parent.horizontalCenter
+            height: Math.max(shortcutsSectionTitle.implicitHeight, Style.space(24))
+
+            PanelSectionHeader {
+              id: shortcutsSectionTitle
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              text: "KEYBOARD SHORTCUTS"
+              foreground: shortcutsHeaderMouse.containsMouse
+                ? (root.bar ? root.bar.foreground : Color.foreground)
+                : (root.bar ? Qt.darker(root.bar.foreground, 1.2) : Color.muted)
+              fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+            }
+
+            Text {
+              id: shortcutsChevron
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.service.showShortcuts ? "󰅀" : "󰅂"
+              color: shortcutsHeaderMouse.containsMouse
+                ? (root.bar ? root.bar.foreground : Color.foreground)
+                : (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted)
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+
+            MouseArea {
+              id: shortcutsHeaderMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                root.service.showShortcuts = !root.service.showShortcuts
+                root.service.saveState()
+              }
+            }
           }
 
           Column {
+            visible: root.service.showShortcuts
             width: parent.width - Style.space(32)
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: Style.space(6)

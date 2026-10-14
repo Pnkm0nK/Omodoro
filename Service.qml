@@ -17,6 +17,7 @@ Item {
     property bool notificationsEnabled: true
     property bool soundEnabled: true
     property bool tickSoundEnabled: true
+    property bool showSecondsInBar: true
     property string selectedPreset: "classic"
 
     readonly property string pluginDir: Quickshell.env("HOME") + "/.config/omarchy/plugins/pnkm0nk.omodoro"
@@ -53,12 +54,14 @@ Item {
 
     property int timeLeft: workTime
     property alias timerRunning: timer.running
-    property string label: format_bar_icon(timeLeft, timer.running)
+    property string label: format_bar_icon(timeLeft, timer.running, showSecondsInBar)
 
     // panel views
     property bool showSettings: false
     property bool showStats: false
     property bool showTasks: false
+    property bool showSoundSettings: false
+    property bool showShortcuts: false
     property bool isDraggingTask: false
 
     // tasks
@@ -141,6 +144,10 @@ Item {
             if (data.settings.tickSoundId !== undefined) root.tickSoundId = data.settings.tickSoundId
             if (data.settings.breakSoundId !== undefined) root.breakSoundId = data.settings.breakSoundId
             if (data.settings.workSoundId !== undefined) root.workSoundId = data.settings.workSoundId
+            if (data.settings.showSecondsInBar !== undefined) root.showSecondsInBar = data.settings.showSecondsInBar
+            else if (data.settings.doubleDigitTimer !== undefined) root.showSecondsInBar = data.settings.doubleDigitTimer
+            if (data.settings.showSoundSettings !== undefined) root.showSoundSettings = data.settings.showSoundSettings
+            if (data.settings.showShortcuts !== undefined) root.showShortcuts = data.settings.showShortcuts
             if (!timer.running) root.timeLeft = root.getTimeForMode(root.currentMode)
         }
         // clearing to prevent leftover data duplicating
@@ -200,7 +207,10 @@ Item {
         tickSoundEnabled: root.tickSoundEnabled,
         tickSoundId: root.tickSoundId,
         breakSoundId: root.breakSoundId,
-        workSoundId: root.workSoundId
+        workSoundId: root.workSoundId,
+        showSecondsInBar: root.showSecondsInBar,
+        showSoundSettings: root.showSoundSettings,
+        showShortcuts: root.showShortcuts
         },
         tasks: modelToArrayTransform(taskModel),
         stats: {
@@ -267,12 +277,17 @@ Item {
     return String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0')
     }
 
-    function format_bar_icon(seconds, isTimerRunning) {
+    function format_bar_icon(seconds, isTimerRunning, showSeconds) {
     if (!isTimerRunning) {
         return "\ue001"
     }
+    var useSeconds = (showSeconds !== undefined) ? showSeconds : root.showSecondsInBar
     var m = Math.floor(seconds / 60)
     var s = seconds % 60
+    if (!useSeconds) {
+        if (m === 0) return "[" + String(s).padStart(2, '0') + "]"
+        return "[" + String(m) + "]"
+    }
     return "[" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0') + "]"
     }
 
