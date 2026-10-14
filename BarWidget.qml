@@ -9,14 +9,19 @@ BarWidget {
   readonly property var service: root.bar && root.bar.shell
     ? root.bar.shell.serviceFor("pnkm0nk.omodoro") : null
 
+  readonly property bool showingSeconds: root.service && root.service.timerRunning && root.service.showSecondsInBar
+  readonly property Item activeWidget: showingSeconds ? secondsButton : iconButton
+
   function injectPanel() {
     var target = panelLoader.item
     if (!target) return
     if ("bar" in target) target.bar = root.bar
     if ("settings" in target) target.settings = root.settings
-    if ("anchorItem" in target) target.anchorItem = button
+    if ("anchorItem" in target) target.anchorItem = activeWidget
     if ("hostWidget" in target) target.hostWidget = root
   }
+
+  onShowingSecondsChanged: injectPanel()
 
   function refresh() {
     if (panelLoader.item && panelLoader.item.refresh) panelLoader.item.refresh()
@@ -60,8 +65,8 @@ BarWidget {
   }
 
   visible: panelLoader.item && root.service && root.service.label !== ""
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
+  implicitWidth: activeWidget ? activeWidget.implicitWidth : 0
+  implicitHeight: activeWidget ? activeWidget.implicitHeight : 0
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
@@ -77,15 +82,34 @@ BarWidget {
     }
   }
 
-  WidgetButton {
-    id: button
+  BarIconButton {
+    id: iconButton
     anchors.fill: parent
+    visible: !root.showingSeconds
+    bar: root.bar
+    text: root.service ? root.service.label : ""
+    foreground: root.getIconForegroundColor()
+    slotSize: Style.bar.statusSlot
+    tooltipText: "Omodoro"
+
+    onPressed: function(b) {
+      if (!root.bar) return
+      if (b === Qt.MiddleButton) root.refresh()
+      else root.togglePanel()
+    }
+  }
+
+  WidgetButton {
+    id: secondsButton
+    anchors.fill: parent
+    visible: root.showingSeconds
     bar: root.bar
     // Hidden label exists only to drive implicitWidth, so the bar reflows
     // neighboring widgets as the countdown text changes width.
     text: root.service ? root.service.label : ""
     labelVisible: false
     hasVisualContent: text !== ""
+    horizontalMargin: 4
     tooltipText: "Omodoro"
 
     onPressed: function(b) {
@@ -94,38 +118,28 @@ BarWidget {
       else root.togglePanel()
     }
 
-    OpticalGlyph {
-      anchors.centerIn: parent
-      visible: !(root.service && root.service.timerRunning)
-      text: "\ue001"
-      fontFamily: button.fontFamily
-      fontSize: Style.bar.iconFont
-      color: button.foreground
-    }
-
     Row {
       anchors.centerIn: parent
-      visible: root.service && root.service.timerRunning
 
       Text {
         text: "["
-        font.family: button.fontFamily
+        font.family: secondsButton.fontFamily
         font.pixelSize: Style.bar.iconFont
-        color: button.foreground
+        color: secondsButton.foreground
         renderType: Text.NativeRendering
       }
       Text {
         text: root.service ? root.service.label.slice(1, -1) : ""
-        font.family: button.fontFamily
+        font.family: secondsButton.fontFamily
         font.pixelSize: Style.bar.iconFont
         color: root.getIconForegroundColor()
         renderType: Text.NativeRendering
       }
       Text {
         text: "]"
-        font.family: button.fontFamily
+        font.family: secondsButton.fontFamily
         font.pixelSize: Style.bar.iconFont
-        color: button.foreground
+        color: secondsButton.foreground
         renderType: Text.NativeRendering
       }
     }

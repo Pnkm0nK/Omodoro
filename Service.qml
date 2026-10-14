@@ -16,8 +16,8 @@ Item {
     property bool autoStartBreak: true
     property bool notificationsEnabled: true
     property bool soundEnabled: true
-    property bool tickSoundEnabled: true
-    property bool showSecondsInBar: true
+    property bool tickSoundEnabled: false
+    property bool showSecondsInBar: false
     property string selectedPreset: "classic"
 
     readonly property string pluginDir: Quickshell.env("HOME") + "/.config/omarchy/plugins/pnkm0nk.omodoro"
@@ -285,8 +285,8 @@ Item {
     var m = Math.floor(seconds / 60)
     var s = seconds % 60
     if (!useSeconds) {
-        if (m === 0) return "[" + String(s).padStart(2, '0') + "]"
-        return "[" + String(m) + "]"
+        if (m === 0) return String(s).padStart(2, '0')
+        return String(m)
     }
     return "[" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0') + "]"
     }

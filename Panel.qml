@@ -811,7 +811,7 @@ Panel {
 
             Toggle {
               width: parent.width
-              label: "Double digit timer in bar"
+              label: "Show seconds in bar"
               description: "Display [mm:ss] countdown on the bar instead of just minutes"
               checked: root.service.showSecondsInBar
               foreground: root.bar ? root.bar.foreground : Color.foreground
