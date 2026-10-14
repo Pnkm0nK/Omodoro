@@ -15,7 +15,41 @@ Item {
     property bool autoStartWork: false
     property bool autoStartBreak: true
     property bool notificationsEnabled: true
+    property bool soundEnabled: true
+    property bool tickSoundEnabled: true
     property string selectedPreset: "classic"
+
+    readonly property string pluginDir: Quickshell.env("HOME") + "/.config/omarchy/plugins/pnkm0nk.omodoro"
+
+    readonly property var soundOptions: [
+        { id: "bell",      label: "Bell",       path: "/usr/share/sounds/freedesktop/stereo/bell.oga" },
+        { id: "complete",  label: "Complete",   path: "/usr/share/sounds/freedesktop/stereo/complete.oga" },
+        { id: "message",   label: "Message",    path: "/usr/share/sounds/freedesktop/stereo/message.oga" },
+        { id: "alarm",     label: "Alarm",      path: "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga" }
+    ]
+
+    readonly property var tickOptions: [
+        { id: "click",      label: "Click",      path: pluginDir + "/sounds/tick.wav" },
+        { id: "wristwatch", label: "Wristwatch", path: pluginDir + "/sounds/tick-wristwatch.wav" }
+    ]
+
+    property string breakSoundId: "complete"
+    property string workSoundId: "bell"
+    property string tickSoundId: "wristwatch"
+
+    function soundPathForId(id) {
+    for (var i = 0; i < soundOptions.length; i++) {
+        if (soundOptions[i].id === id) return soundOptions[i].path
+    }
+    return soundOptions[0].path
+    }
+
+    function tickSoundPathForId(id) {
+    for (var i = 0; i < tickOptions.length; i++) {
+        if (tickOptions[i].id === id) return tickOptions[i].path
+    }
+    return tickOptions[0].path
+    }
 
     property int timeLeft: workTime
     property alias timerRunning: timer.running
@@ -102,6 +136,11 @@ Item {
             if (data.settings.autoStartWork !== undefined) root.autoStartWork = data.settings.autoStartWork
             if (data.settings.autoStartBreak !== undefined) root.autoStartBreak = data.settings.autoStartBreak
             if (data.settings.notificationsEnabled !== undefined) root.notificationsEnabled = data.settings.notificationsEnabled
+            if (data.settings.soundEnabled !== undefined) root.soundEnabled = data.settings.soundEnabled
+            if (data.settings.tickSoundEnabled !== undefined) root.tickSoundEnabled = data.settings.tickSoundEnabled
+            if (data.settings.tickSoundId !== undefined) root.tickSoundId = data.settings.tickSoundId
+            if (data.settings.breakSoundId !== undefined) root.breakSoundId = data.settings.breakSoundId
+            if (data.settings.workSoundId !== undefined) root.workSoundId = data.settings.workSoundId
             if (!timer.running) root.timeLeft = root.getTimeForMode(root.currentMode)
         }
         // clearing to prevent leftover data duplicating
@@ -156,7 +195,12 @@ Item {
         longBreakInterval: root.longBreakInterval,
         autoStartWork: root.autoStartWork,
         autoStartBreak: root.autoStartBreak,
-        notificationsEnabled: root.notificationsEnabled
+        notificationsEnabled: root.notificationsEnabled,
+        soundEnabled: root.soundEnabled,
+        tickSoundEnabled: root.tickSoundEnabled,
+        tickSoundId: root.tickSoundId,
+        breakSoundId: root.breakSoundId,
+        workSoundId: root.workSoundId
         },
         tasks: modelToArrayTransform(taskModel),
         stats: {
@@ -269,6 +313,19 @@ Item {
     ])
     }
 
+    function playSound(path) {
+    if (!soundEnabled) return
+    Quickshell.execDetached(["paplay", path])
+    }
+
+    function previewSound(id) {
+    Quickshell.execDetached(["paplay", soundPathForId(id)])
+    }
+
+    function previewTick() {
+    Quickshell.execDetached(["paplay", tickSoundPathForId(tickSoundId)])
+    }
+
     function switchMode(newMode) {
     currentMode = newMode
     timeLeft = getTimeForMode(newMode)
@@ -290,11 +347,13 @@ Item {
         message = "Take a short break"
         timer.running = autoStartBreak
         }
+        playSound(soundPathForId(breakSoundId))
     } else {
         notificationTitle = "Time to work"
-        message = "Another pomodoro!"  
+        message = "Another pomodoro!"
         switchMode("work")
         timer.running = autoStartWork
+        playSound(soundPathForId(workSoundId))
     }
     sendNotification(notificationTitle, message)
     }
@@ -352,6 +411,7 @@ Item {
         onTriggered: {
             if (root.timeLeft > 0) {
             root.timeLeft -= 1
+            if (root.tickSoundEnabled) root.playSound(root.tickSoundPathForId(root.tickSoundId))
             } else {
             running = false
             root.nextMode()
