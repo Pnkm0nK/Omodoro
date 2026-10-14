@@ -273,8 +273,7 @@ Item {
     }
     var m = Math.floor(seconds / 60)
     var s = seconds % 60
-    if (m === 0) return String(s).padStart(2, '0')
-    return String(m)
+    return "[" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0') + "]"
     }
 
     function getLogoForMode(mode) {
