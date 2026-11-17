@@ -668,6 +668,31 @@ Item {
     }
     }
 
+    function adjustTaskEstimate(index, delta) {
+    if (index >= 0 && index < taskModel.count) {
+        var item = taskModel.get(index)
+        var prevEstimated = item.estimated || 1
+        var nextEstimated = Math.max(1, prevEstimated + (delta || 0))
+        if (nextEstimated === prevEstimated) return
+
+        var comp = item.completed || 0
+        taskModel.setProperty(index, "estimated", nextEstimated)
+
+        if (!item.done && comp > 0 && comp >= nextEstimated) {
+            taskModel.setProperty(index, "done", true)
+            taskModel.setProperty(index, "completedAt", todayString())
+        } else if (item.done && comp >= prevEstimated && comp < nextEstimated) {
+            taskModel.setProperty(index, "done", false)
+            taskModel.setProperty(index, "completedAt", "")
+        }
+
+        syncTaskToHistory(taskModel.get(index))
+        root.updateCurrentTask()
+        root.historyRevision += 1
+        saveState()
+    }
+    }
+
     function incrementTask(index, minsOverride) {
     if (index >= 0 && index < taskModel.count) {
         var item = taskModel.get(index)

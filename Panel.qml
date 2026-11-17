@@ -376,7 +376,7 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
               }
             }
-
+            // drawer toggle button
             Button {
               anchors.right: parent.right
               anchors.rightMargin: Style.space(12)
@@ -432,7 +432,7 @@ Panel {
                     id: dragArea
                     anchors.fill: parent
                     anchors.leftMargin: Style.space(36)
-                    anchors.rightMargin: Style.space(76)
+                    anchors.rightMargin: Style.space(12) + taskDecBtn.width + taskIncBtn.width + taskDelBtn.width + taskRow.spacing * 3
                     hoverEnabled: true
                     cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
                     drag.target: taskRowWrapper
@@ -474,6 +474,7 @@ Panel {
                     spacing: Style.space(6)
 
                     Text {
+                      id: dragHandle
                       text: "⠿"
                       color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : Color.muted
                       font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -526,7 +527,7 @@ Panel {
                       elide: Text.ElideRight
                       width: Math.max(
                         Style.space(40),
-                        parent.width - taskDoneBtn.width - (taskTagPill.visible ? taskTagPill.width + parent.spacing : 0) - taskProgress.width - taskIncBtn.width - taskDelBtn.width - Style.space(18) - parent.spacing * 5
+                        parent.width - dragHandle.width - taskDoneBtn.width - (taskTagPill.visible ? taskTagPill.width + parent.spacing : 0) - taskProgress.width - taskDecBtn.width - taskIncBtn.width - taskDelBtn.width - parent.spacing * 6
                       )
                       anchors.verticalCenter: parent.verticalCenter
                     }
@@ -544,12 +545,22 @@ Panel {
                     }
 
                     PanelActionButton {
-                      id: taskIncBtn
-                      iconText: "\uf067"
-                      tooltipText: "Log +1 pomodoro"
+                      id: taskDecBtn
+                      iconText: "\uf068"
+                      tooltipText: "Decrease estimate"
+                      enabled: estimated > 1
                       foreground: root.bar ? root.bar.foreground : Color.foreground
                       anchors.verticalCenter: parent.verticalCenter
-                      onClicked: root.service.incrementTask(index)
+                      onClicked: root.service.adjustTaskEstimate(index, -1)
+                    }
+
+                    PanelActionButton {
+                      id: taskIncBtn
+                      iconText: "\uf067"
+                      tooltipText: "Increase estimate"
+                      foreground: root.bar ? root.bar.foreground : Color.foreground
+                      anchors.verticalCenter: parent.verticalCenter
+                      onClicked: root.service.adjustTaskEstimate(index, 1)
                     }
 
                     PanelActionButton {
@@ -588,7 +599,7 @@ Panel {
                 TextField {
                   id: taskNameField
                   width: parent.width - taskEstField.width - addTaskBtn.width - parent.spacing * 3
-                  placeholderText: "New task... (e.g. #dev Fix bug)"
+                  placeholderText: "New task (e.g. #dev Fix bug)"
                   foreground: root.bar ? root.bar.foreground : Color.foreground
                   Keys.onReturnPressed: {
                     root.service.addTask(taskNameField.text, taskEstField.value)
