@@ -392,192 +392,263 @@ Panel {
             visible: root.service.showTasks
             spacing: Style.space(8)
 
-            ListView {
+            Flickable {
               id: taskDrawer
               width: parent.width
               height: Math.min(contentHeight, Style.space(150))
+              contentWidth: width
+              contentHeight: taskListContainer.height
               clip: true
-              interactive: !root.service.isDraggingTask
-              model: root.service.taskModel
+              boundsBehavior: Flickable.StopAtBounds
+              interactive: (contentHeight > height) && !root.service.isDraggingTask
 
-              delegate: Item {
-                id: delegateRoot
-                required property string name
-                required property int completed
-                required property int estimated
-                required property bool done
-                required property int index
+              Item {
+                id: taskListContainer
                 width: taskDrawer.width
-                height: Math.max(taskRow.implicitHeight, Style.space(36))
-                z: dragArea.drag.active ? 100 : 1
+                height: taskRepeater.count * Style.space(36)
 
-                readonly property var parsedTask: root.service.extractTaskTag(name)
+                Repeater {
+                  id: taskRepeater
+                  model: root.service.taskModel
 
-                Item {
-                  id: taskRowWrapper
-                  width: parent.width
-                  height: parent.height
+                  delegate: Item {
+                    id: delegateRoot
+                    required property string name
+                    required property int completed
+                    required property int estimated
+                    required property bool done
+                    required property int index
+                    width: taskListContainer.width
+                    height: Math.max(taskRow.implicitHeight, Style.space(36))
+                    y: index * height
+                    z: dragArea.isDragging ? 100 : 1
 
-                  Rectangle {
-                    anchors.fill: parent
-                    color: dragArea.drag.active
-                      ? (root.bar ? Qt.rgba(root.bar.foreground.r, root.bar.foreground.g, root.bar.foreground.b, 0.15) : Qt.rgba(1, 1, 1, 0.15))
-                      : (dragArea.containsMouse ? (root.bar ? Qt.rgba(root.bar.foreground.r, root.bar.foreground.g, root.bar.foreground.b, 0.05) : Qt.rgba(1, 1, 1, 0.05)) : "transparent")
-                    radius: Style.space(4)
-                    border.color: dragArea.drag.active ? (root.bar ? root.bar.foreground : Color.foreground) : "transparent"
-                    border.width: dragArea.drag.active ? 1 : 0
-                  }
+                    readonly property var parsedTask: root.service.extractTaskTag(name)
 
-                  MouseArea {
-                    id: dragArea
-                    anchors.fill: parent
-                    anchors.leftMargin: Style.space(36)
-                    anchors.rightMargin: Style.space(12) + taskDecBtn.width + taskIncBtn.width + taskDelBtn.width + taskRow.spacing * 3
-                    hoverEnabled: true
-                    cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                    drag.target: taskRowWrapper
-                    drag.axis: Drag.YAxis
+                    Item {
+                      id: taskRowWrapper
+                      width: parent.width
+                      height: parent.height
+                      y: dragArea.isDragging ? (dragArea.dragContentY - delegateRoot.y) : 0
 
-                    onPressed: root.service.isDraggingTask = true
+                      Rectangle {
+                        anchors.fill: parent
+                        color: dragArea.isDragging
+                          ? (root.bar ? Qt.rgba(root.bar.foreground.r, root.bar.foreground.g, root.bar.foreground.b, 0.15) : Qt.rgba(1, 1, 1, 0.15))
+                          : (dragArea.containsMouse ? (root.bar ? Qt.rgba(root.bar.foreground.r, root.bar.foreground.g, root.bar.foreground.b, 0.05) : Qt.rgba(1, 1, 1, 0.05)) : "transparent")
+                        radius: Style.space(4)
+                        border.color: dragArea.isDragging ? (root.bar ? root.bar.foreground : Color.foreground) : "transparent"
+                        border.width: dragArea.isDragging ? 1 : 0
+                      }
 
-                    onPositionChanged: {
-                      if (drag.active) {
-                        var currentY = delegateRoot.y + taskRowWrapper.y + delegateRoot.height / 2
-                        var targetIdx = Math.floor(currentY / delegateRoot.height)
-                        targetIdx = Math.max(0, Math.min(root.service.taskModel.count - 1, targetIdx))
-                        if (targetIdx !== index) {
-                          root.service.taskModel.move(index, targetIdx, 1)
-                          root.service.updateCurrentTask()
-                          root.service.saveState()
+                      MouseArea {
+                        id: dragArea
+                        anchors.fill: parent
+                        anchors.rightMargin: Style.space(12) + taskDecBtn.width + taskIncBtn.width + taskDelBtn.width + taskRow.spacing * 3
+                        hoverEnabled: true
+                        preventStealing: true
+                        cursorShape: (pressed || isDragging) ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+
+                        property bool isDragging: false
+                        property real grabOffsetY: 0
+                        property real dragContentY: 0
+                        property real lastViewportY: 0
+                        readonly property real edgeZone: Style.space(28)
+                        readonly property real maxScrollStep: Style.space(6)
+
+                        function updateDragFromViewportY(viewportY) {
+                          var posInList = taskDrawer.contentY + viewportY
+                          var targetY = posInList - grabOffsetY
+                          if (!isDragging && Math.abs(targetY - delegateRoot.y) >= 2) {
+                            isDragging = true
+                          }
+                          if (isDragging) {
+                            var maxY = Math.max(0, taskListContainer.height - delegateRoot.height)
+                            dragContentY = Math.max(0, Math.min(maxY, targetY))
+                            var currentCenterY = dragContentY + delegateRoot.height / 2
+                            var targetIdx = Math.floor(currentCenterY / delegateRoot.height)
+                            targetIdx = Math.max(0, Math.min(root.service.taskModel.count - 1, targetIdx))
+                            if (targetIdx !== index) {
+                              root.service.taskModel.move(index, targetIdx, 1)
+                              root.service.updateCurrentTask()
+                            }
+                          }
+                        }
+
+                        Timer {
+                          id: autoScrollTimer
+                          interval: 16
+                          repeat: true
+                          running: dragArea.isDragging
+                            && taskDrawer.contentHeight > taskDrawer.height
+                            && ((dragArea.lastViewportY < dragArea.edgeZone && taskDrawer.contentY > 0)
+                              || (dragArea.lastViewportY > taskDrawer.height - dragArea.edgeZone
+                                && taskDrawer.contentY < taskDrawer.contentHeight - taskDrawer.height))
+                          onTriggered: {
+                            var maxContentY = Math.max(0, taskDrawer.contentHeight - taskDrawer.height)
+                            if (dragArea.lastViewportY < dragArea.edgeZone && taskDrawer.contentY > 0) {
+                              var upRatio = Math.min(1, (dragArea.edgeZone - dragArea.lastViewportY) / dragArea.edgeZone)
+                              var upStep = Math.max(1, dragArea.maxScrollStep * upRatio)
+                              taskDrawer.contentY = Math.max(0, taskDrawer.contentY - upStep)
+                            } else if (dragArea.lastViewportY > taskDrawer.height - dragArea.edgeZone && taskDrawer.contentY < maxContentY) {
+                              var downDist = dragArea.lastViewportY - (taskDrawer.height - dragArea.edgeZone)
+                              var downRatio = Math.min(1, downDist / dragArea.edgeZone)
+                              var downStep = Math.max(1, dragArea.maxScrollStep * downRatio)
+                              taskDrawer.contentY = Math.min(maxContentY, taskDrawer.contentY + downStep)
+                            }
+                            dragArea.updateDragFromViewportY(dragArea.lastViewportY)
+                          }
+                        }
+
+                        onPressed: function(mouse) {
+                          grabOffsetY = mouse.y
+                          dragContentY = delegateRoot.y
+                          lastViewportY = dragArea.mapToItem(taskDrawer, 0, mouse.y).y
+                          isDragging = false
+                          root.service.isDraggingTask = true
+                        }
+
+                        onPositionChanged: function(mouse) {
+                          if (!pressed) return
+                          lastViewportY = dragArea.mapToItem(taskDrawer, 0, mouse.y).y
+                          updateDragFromViewportY(lastViewportY)
+                        }
+
+                        onReleased: {
+                          var wasDragging = isDragging
+                          isDragging = false
+                          root.service.isDraggingTask = false
+                          if (wasDragging) {
+                            root.service.saveState()
+                          }
+                        }
+
+                        onCanceled: {
+                          var wasDragging = isDragging
+                          isDragging = false
+                          root.service.isDraggingTask = false
+                          if (wasDragging) {
+                            root.service.saveState()
+                          }
                         }
                       }
-                    }
 
-                    onReleased: {
-                      root.service.isDraggingTask = false
-                      taskRowWrapper.y = 0
-                    }
+                      Row {
+                        id: taskRow
+                        anchors.left: parent.left
+                        anchors.leftMargin: Style.space(12)
+                        anchors.right: parent.right
+                        anchors.rightMargin: Style.space(12)
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Style.space(6)
 
-                    onCanceled: {
-                      root.service.isDraggingTask = false
-                      taskRowWrapper.y = 0
-                    }
-                  }
+                        Text {
+                          id: dragHandle
+                          text: "⠿"
+                          color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : Color.muted
+                          font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                          font.pixelSize: Style.font.body
+                          anchors.verticalCenter: parent.verticalCenter
+                          anchors.verticalCenterOffset: Style.space(2)
+                        }
 
-                  Row {
-                    id: taskRow
-                    anchors.left: parent.left
-                    anchors.leftMargin: Style.space(12)
-                    anchors.right: parent.right
-                    anchors.rightMargin: Style.space(12)
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Style.space(6)
+                        PanelActionButton {
+                          id: taskDoneBtn
+                          iconText: done ? "\uf00c" : "\uf10c"
+                          tooltipText: done ? "Mark incomplete" : "Mark completed"
+                          foreground: done
+                            ? Color.accent
+                            : (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted)
+                          hoverColor: Color.accent
+                          anchors.verticalCenter: parent.verticalCenter
+                          onClicked: root.service.toggleTaskDone(index)
+                        }
 
-                    Text {
-                      id: dragHandle
-                      text: "⠿"
-                      color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : Color.muted
-                      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                      font.pixelSize: Style.font.body
-                      anchors.verticalCenter: parent.verticalCenter
-                      anchors.verticalCenterOffset: Style.space(2)
-                    }
+                        Rectangle {
+                          id: taskTagPill
+                          visible: delegateRoot.parsedTask.tag !== ""
+                          height: taskTagLabel.implicitHeight + Style.space(4)
+                          width: visible ? (taskTagLabel.implicitWidth + Style.space(10)) : 0
+                          radius: Style.space(3)
+                          color: Util.alpha(Color.accent, 0.16)
+                          anchors.verticalCenter: parent.verticalCenter
 
-                    PanelActionButton {
-                      id: taskDoneBtn
-                      iconText: done ? "\uf00c" : "\uf10c"
-                      tooltipText: done ? "Mark incomplete" : "Mark completed"
-                      foreground: done
-                        ? Color.accent
-                        : (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted)
-                      hoverColor: Color.accent
-                      anchors.verticalCenter: parent.verticalCenter
-                      onClicked: root.service.toggleTaskDone(index)
-                    }
+                          Text {
+                            id: taskTagLabel
+                            anchors.centerIn: parent
+                            text: delegateRoot.parsedTask.tag
+                            color: Color.accent
+                            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                            font.pixelSize: Style.font.caption
+                            font.bold: true
+                          }
+                        }
 
-                    Rectangle {
-                      id: taskTagPill
-                      visible: delegateRoot.parsedTask.tag !== ""
-                      height: taskTagLabel.implicitHeight + Style.space(4)
-                      width: visible ? (taskTagLabel.implicitWidth + Style.space(10)) : 0
-                      radius: Style.space(3)
-                      color: Util.alpha(Color.accent, 0.16)
-                      anchors.verticalCenter: parent.verticalCenter
+                        Text {
+                          id: taskNameText
+                          text: delegateRoot.parsedTask.cleanName
+                          color: done
+                            ? (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted)
+                            : (root.bar ? root.bar.foreground : Color.foreground)
+                          font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                          font.pixelSize: Style.font.body
+                          font.strikeout: done
+                          elide: Text.ElideRight
+                          width: Math.max(
+                            Style.space(40),
+                            parent.width - dragHandle.width - taskDoneBtn.width - (taskTagPill.visible ? taskTagPill.width + parent.spacing : 0) - taskProgress.width - taskDecBtn.width - taskIncBtn.width - taskDelBtn.width - parent.spacing * 6
+                          )
+                          anchors.verticalCenter: parent.verticalCenter
+                        }
 
-                      Text {
-                        id: taskTagLabel
-                        anchors.centerIn: parent
-                        text: delegateRoot.parsedTask.tag
-                        color: Color.accent
-                        font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                        font.pixelSize: Style.font.caption
-                        font.bold: true
+                        Text {
+                          id: taskProgress
+                          text: completed + "/" + estimated
+                          color: completed > estimated
+                            ? Color.urgent
+                            : (done ? Color.accent : (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted))
+                          font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                          font.pixelSize: Style.font.bodySmall
+                          font.bold: completed > estimated || done
+                          anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        PanelActionButton {
+                          id: taskDecBtn
+                          iconText: "\uf068"
+                          tooltipText: "Decrease estimate"
+                          enabled: estimated > 1
+                          foreground: root.bar ? root.bar.foreground : Color.foreground
+                          anchors.verticalCenter: parent.verticalCenter
+                          onClicked: root.service.adjustTaskEstimate(index, -1)
+                        }
+
+                        PanelActionButton {
+                          id: taskIncBtn
+                          iconText: "\uf067"
+                          tooltipText: "Increase estimate"
+                          foreground: root.bar ? root.bar.foreground : Color.foreground
+                          anchors.verticalCenter: parent.verticalCenter
+                          onClicked: root.service.adjustTaskEstimate(index, 1)
+                        }
+
+                        PanelActionButton {
+                          id: taskDelBtn
+                          iconText: "✕"
+                          tooltipText: "Remove from list"
+                          foreground: root.bar ? root.bar.foreground : Color.foreground
+                          hoverColor: Color.urgent
+                          anchors.verticalCenter: parent.verticalCenter
+                          onClicked: root.service.removeTask(index)
+                        }
+                      }
+
+                      PanelToolTip {
+                        visible: dragArea.containsMouse && !taskDoneBtn._hot && !dragArea.isDragging && taskNameText.truncated
+                        text: delegateRoot.parsedTask.cleanName
+                        fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
                       }
                     }
-
-                    Text {
-                      id: taskNameText
-                      text: delegateRoot.parsedTask.cleanName
-                      color: done
-                        ? (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted)
-                        : (root.bar ? root.bar.foreground : Color.foreground)
-                      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                      font.pixelSize: Style.font.body
-                      font.strikeout: done
-                      elide: Text.ElideRight
-                      width: Math.max(
-                        Style.space(40),
-                        parent.width - dragHandle.width - taskDoneBtn.width - (taskTagPill.visible ? taskTagPill.width + parent.spacing : 0) - taskProgress.width - taskDecBtn.width - taskIncBtn.width - taskDelBtn.width - parent.spacing * 6
-                      )
-                      anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    Text {
-                      id: taskProgress
-                      text: completed + "/" + estimated
-                      color: completed > estimated
-                        ? Color.urgent
-                        : (done ? Color.accent : (root.bar ? Qt.darker(root.bar.foreground, 1.4) : Color.muted))
-                      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                      font.pixelSize: Style.font.bodySmall
-                      font.bold: completed > estimated || done
-                      anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    PanelActionButton {
-                      id: taskDecBtn
-                      iconText: "\uf068"
-                      tooltipText: "Decrease estimate"
-                      enabled: estimated > 1
-                      foreground: root.bar ? root.bar.foreground : Color.foreground
-                      anchors.verticalCenter: parent.verticalCenter
-                      onClicked: root.service.adjustTaskEstimate(index, -1)
-                    }
-
-                    PanelActionButton {
-                      id: taskIncBtn
-                      iconText: "\uf067"
-                      tooltipText: "Increase estimate"
-                      foreground: root.bar ? root.bar.foreground : Color.foreground
-                      anchors.verticalCenter: parent.verticalCenter
-                      onClicked: root.service.adjustTaskEstimate(index, 1)
-                    }
-
-                    PanelActionButton {
-                      id: taskDelBtn
-                      iconText: "✕"
-                      tooltipText: "Remove from list"
-                      foreground: root.bar ? root.bar.foreground : Color.foreground
-                      hoverColor: Color.urgent
-                      anchors.verticalCenter: parent.verticalCenter
-                      onClicked: root.service.removeTask(index)
-                    }
-                  }
-
-                  PanelToolTip {
-                    visible: dragArea.containsMouse && !dragArea.drag.active && taskNameText.truncated
-                    text: delegateRoot.parsedTask.cleanName
-                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
                   }
                 }
               }

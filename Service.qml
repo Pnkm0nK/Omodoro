@@ -129,6 +129,7 @@ Item {
 
     // path for persistent state storage
     property string statePath: Quickshell.env("HOME") + "/.local/state/omarchy/omodoro.json"
+    property string lastSavedJson: ""
 
     FileView {
     id: stateFile
@@ -240,6 +241,8 @@ Item {
 
     function loadState(raw) {
     if (!raw || raw.trim() === "") return
+    if (raw === root.lastSavedJson) return
+    root.lastSavedJson = raw
     try {
         var data = JSON.parse(raw)
         if (data.settings) {
@@ -359,7 +362,9 @@ Item {
         taskHistory: root.taskHistory
         }
     }
-    stateFile.setText(JSON.stringify(data, null, 2) + "\n")
+    var jsonText = JSON.stringify(data, null, 2) + "\n"
+    root.lastSavedJson = jsonText
+    stateFile.setText(jsonText)
     }
 
     function recordWorkSessionCompleted() {
